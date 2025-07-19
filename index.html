@@ -122,93 +122,43 @@ function highlightBible(text) {
     return "";
   }
 
-  function createToggleSection(title, children, level = 0, summary = "") {
-    const header = document.createElement("div");
-    header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
-    header.className = "toggle-header";
-    header.style.marginLeft = `${level * 20}px`;
+function createToggleSection(title, children, level = 0, summary = "") {
+  const header = document.createElement("div");
+  header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
+  header.className = "toggle-header";
+  header.style.marginLeft = `${level * 20}px`;
 
-    const content = document.createElement("div");
-    content.className = "toggle-content";
-    content.style.display = "none";
+  const content = document.createElement("div");
+  content.className = "toggle-content";
+  content.style.display = "none";
 
-    header.onclick = () => {
-      header.classList.toggle("expanded");
-      content.style.display = content.style.display === "none" ? "block" : "none";
-    };
+  header.onclick = () => {
+    header.classList.toggle("expanded");
+    content.style.display = content.style.display === "none" ? "block" : "none";
+  };
 
-    children.forEach(child => {
-  if (child.children) {
-    const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
-    content.appendChild(nested);
+  children.forEach(child => {
+    if (child.children) {
+      // 중분류 또는 소분류
+      const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
+      content.appendChild(nested);
+    } else {
+      // 소속된 문장
+      const leaf = document.createElement("div");
+      leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
+      leaf.style.marginLeft = `${(level + 1) * 20}px`;
+      leaf.onclick = () => {
+        currentIdx = child.idx;
+      };
+      content.appendChild(leaf);
+    }
+  });
 
-    child.children.forEach(grandchild => {
-      if (grandchild.children) {
-        grandchild.children.forEach(greatgrandchild => {
-          const leaf = document.createElement("div");
-          leaf.innerHTML = highlightBible(`<span style='color:blue;'>${greatgrandchild.title}</span>`);
-          leaf.style.marginLeft = `${(level + 3) * 20}px`;
-          leaf.onclick = () => {
-            currentIdx = greatgrandchild.idx;
-          };
-          content.appendChild(leaf);
-        });
-      } else {
-        const leaf = document.createElement("div");
-        leaf.innerHTML = highlightBible(`<span style='color:blue;'>${grandchild.title}</span>`);
-        leaf.style.marginLeft = `${(level + 2) * 20}px`;
-        leaf.onclick = () => {
-          currentIdx = grandchild.idx;
-        };
-        content.appendChild(leaf);
-      }
-    });
-  } else {
-    const leaf = document.createElement("div");
-    leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
-    leaf.style.marginLeft = `${(level + 1) * 20}px`;
-    leaf.onclick = () => {
-      currentIdx = child.idx;
-    };
-    content.appendChild(leaf);
-  }
-});
-      } else {
-        const leaf = document.createElement("div");
-        leaf.innerHTML = highlightBible(`<span style='color:blue;'>${grandchild.title}</span>`);
-        leaf.style.marginLeft = `${(level + 2) * 20}px`;
-        leaf.onclick = () => {
-          currentIdx = grandchild.idx;
-        };
-        content.appendChild(leaf);
-      }
-    });
-  } else {
-    const leaf = document.createElement("div");
-    leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
-    leaf.style.marginLeft = `${(level + 1) * 20}px`;
-    leaf.onclick = () => {
-      currentIdx = child.idx;
-    };
-    content.appendChild(leaf);
-  }
-});
-  } else {
-    const leaf = document.createElement("div");
-    leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
-    leaf.style.marginLeft = `${(level + 1) * 20}px`;
-    leaf.onclick = () => {
-      currentIdx = child.idx;
-    };
-    content.appendChild(leaf);
-  }
-});
-
-    const wrapper = document.createElement("div");
-    wrapper.appendChild(header);
-    wrapper.appendChild(content);
-    return wrapper;
-  }
+  const wrapper = document.createElement("div");
+  wrapper.appendChild(header);
+  wrapper.appendChild(content);
+  return wrapper;
+}
 
   function renderStructureTree() {
     const container = document.getElementById("structureTree");
