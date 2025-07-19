@@ -16,6 +16,7 @@
     .toggle-header::before { content: "▶ "; }
     .expanded.toggle-header::before { content: "▼ "; }
     .bible { color: red; font-weight: bold; font-style: italic; }
+    .header-white-bracket { color: white; }
   </style>
 </head>
 <body>
@@ -54,6 +55,13 @@
     const beforeBible = text.slice(0, match.index);
     const afterBible = text.slice(match.index + match[0].length);
     return `<span style="color:blue;">${beforeBible}${biblePart}${afterBible}</span>`;
+  }
+
+  function styleTitleWithWhiteBracket(text) {
+    if (text.startsWith("[]")) {
+      return `<span class='header-white-bracket'>${text}</span>`;
+    }
+    return text;
   }
 
   function analyzeSermon() {
@@ -117,9 +125,8 @@
   }
 
   function createToggleSection(title, children, level = 0, summary = "") {
-    const cleanTitle = title.startsWith("[]") ? title.slice(2).trim() : title;
     const header = document.createElement("div");
-    header.innerHTML = `<strong>${cleanTitle}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
+    header.innerHTML = `<strong>${styleTitleWithWhiteBracket(title)}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
     header.className = "toggle-header";
     header.style.marginLeft = `${level * 20}px`;
 
