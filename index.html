@@ -19,7 +19,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 & 음성 인식 하이라이트</h1>
+<h1>설교문 구조 분석</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 <p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
@@ -61,16 +61,16 @@
 
     sermonLines.forEach(line => {
       if (/^\d+\.\s/.test(line.text)) {
-        currentBlock = { title: line.text, children: [] };
+        currentBlock = { title: line.text, children: [], summary: findSummary(line.idx) };
         structureMap.push(currentBlock);
         currentIndent1 = null;
         currentIndent2 = null;
       } else if (/^\d+\)\s/.test(line.text)) {
-        currentIndent1 = { title: line.text, children: [] };
+        currentIndent1 = { title: line.text, children: [], summary: findSummary(line.idx) };
         currentBlock?.children.push(currentIndent1);
         currentIndent2 = null;
       } else if (/^\(\d+\)\s/.test(line.text)) {
-        currentIndent2 = { title: line.text, children: [] };
+        currentIndent2 = { title: line.text, children: [], summary: findSummary(line.idx) };
         currentIndent1?.children.push(currentIndent2);
       } else {
         currentIndent2?.children.push({ title: line.text, idx: line.idx });
@@ -89,9 +89,20 @@
     renderLimitedSermon();
   }
 
-  function createToggleSection(title, children, level = 0) {
+  function findSummary(startIdx) {
+    for (let i = startIdx + 1; i < sermonLines.length; i++) {
+      const text = sermonLines[i].text;
+      if (text.startsWith("[]") || /\d+장\s?\d+절/.test(text) || /\([0-9]+:[0-9]+\)/.test(text)) {
+        return text;
+      }
+      if (/^\d+\.\s|^\d+\)|^\(\d+\)/.test(text)) break;
+    }
+    return "";
+  }
+
+  function createToggleSection(title, children, level = 0, summary = "") {
     const header = document.createElement("div");
-    header.textContent = title;
+    header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + summary + '</span>' : ''}`;
     header.className = "toggle-header";
     header.style.marginLeft = `${level * 20}px`;
 
@@ -106,7 +117,7 @@
 
     children.forEach(child => {
       if (child.children) {
-        const nested = createToggleSection(child.title, child.children, level + 1);
+        const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
         content.appendChild(nested);
       } else {
         const leaf = document.createElement("div");
@@ -130,7 +141,7 @@
     const container = document.getElementById("structureTree");
     container.innerHTML = "";
     structureMap.forEach(block => {
-      const section = createToggleSection(block.title, block.children);
+      const section = createToggleSection(block.title, block.children, 0, block.summary);
       container.appendChild(section);
     });
   }
