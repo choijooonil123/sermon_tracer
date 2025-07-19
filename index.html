@@ -31,14 +31,8 @@
 <button onclick="startRecognition()">🎙️ 음성 인식 시작</button>
 <div id="transcriptBox">🗣️ 실시간 음성 인식 결과: <span id="liveTranscript">(없음)</span></div>
 
-<p>의미 단위를 계층적으로 구분해 주세요:</p>
-<ul>
-  <li><code>{큰단위}</code></li>
-  <li><code>{{중간단위}}</code></li>
-  <li><code>{{{작은단위}}}</code></li>
-</ul>
-
-<textarea id="sermonInput" placeholder="예: {서론입니다} {{믿음이란}} {{{믿음은 바라는 것들의 실상이요}}}"></textarea>
+<p>설교 입력 (숫자. = 대의미, 숫자) = 중의미, (숫자) = 소의미):</p>
+<textarea id="sermonInput" placeholder="1. 서론\n1) 믿음이란\n(1) 바라는 것들의 실상"></textarea>
 
 <h3>🗂 의미 단위 트리</h3>
 <ul id="treeView" class="tree"></ul>
@@ -50,15 +44,19 @@ let selectedIndex = -1;
 let currentUnits = [];
 let recognition;
 
-function parseSermon(text) {
+function parseSermonByPattern(text) {
+  const lines = text.split(/\n+/);
   const units = [];
-  const regex = /\{\{\{(.*?)\}\}\}|\{\{(.*?)\}\}|\{(.*?)\}/gs;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    if (match[1]) units.push({ level: 3, content: match[1].trim() });
-    else if (match[2]) units.push({ level: 2, content: match[2].trim() });
-    else if (match[3]) units.push({ level: 1, content: match[3].trim() });
-  }
+  lines.forEach(line => {
+    line = line.trim();
+    if (/^\d+\.\s+/.test(line)) {
+      units.push({ level: 1, content: line });
+    } else if (/^\d+\)\s+/.test(line)) {
+      units.push({ level: 2, content: line });
+    } else if (/^\(\d+\)\s+/.test(line)) {
+      units.push({ level: 3, content: line });
+    }
+  });
   return units;
 }
 
@@ -74,13 +72,14 @@ function renderTree(units) {
   const tree = document.getElementById("treeView");
   tree.innerHTML = units.map((u, i) => {
     const selected = i === selectedIndex ? 'selectedTree' : '';
-    return `<li class='${selected}' data-index='${i}'>[${u.level}] ${u.content.slice(0, 30)}...</li>`;
+    const indent = '&nbsp;'.repeat((u.level - 1) * 4);
+    return `<li class='${selected}' data-index='${i}'>${indent}${u.content.slice(0, 30)}</li>`;
   }).join("\n");
 }
 
 document.getElementById("sermonInput").addEventListener("input", () => {
   const text = document.getElementById("sermonInput").value;
-  currentUnits = parseSermon(text);
+  currentUnits = parseSermonByPattern(text);
   renderPreview(currentUnits);
   renderTree(currentUnits);
 });
@@ -104,9 +103,9 @@ document.getElementById("previewBox").addEventListener("click", e => {
 });
 
 document.addEventListener("keydown", e => {
-  if (e.key === "ArrowLeft") {
+  if (e.key === "ArrowLeft" || e.key === "PageUp") {
     selectedIndex = Math.max(0, selectedIndex - 1);
-  } else if (e.key === "ArrowRight") {
+  } else if (e.key === "ArrowRight" || e.key === "PageDown") {
     selectedIndex = Math.min(currentUnits.length - 1, selectedIndex + 1);
   } else {
     return;
@@ -134,11 +133,11 @@ function startRecognition() {
 
     if (selectedIndex >= 0) {
       const currentText = currentUnits[selectedIndex].content;
-      const sentences = currentText.split(/(?<=[.!?\n])/);
+      const sentences = currentText.split(/\n+/);
       let matched = false;
 
       const highlighted = sentences.map(s => {
-        if (!matched && transcript.includes(s.trim())) {
+        if (!matched && transcript.replace(/\s/g, '').includes(s.trim().replace(/\s/g, ''))) {
           matched = true;
           return `<span class='highlight'>${s}</span>`;
         }
