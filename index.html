@@ -63,8 +63,13 @@ function parseSermonByPattern(text) {
 function renderPreview(units) {
   const preview = document.getElementById("previewBox");
   preview.innerHTML = units.map((u, i) => {
-    const selected = i === selectedIndex ? 'selected' : '';
-    return `<div class="unitBox level${u.level} ${selected}" data-index="${i}" id="unit-${i}">${u.content}</div>`;
+    const highlighted = (i === selectedIndex) 
+      ? `<div class="unitBox level${u.level} selected" data-index="${i}" id="unit-${i}"><span class='highlight'>${u.content}</span></div>`
+      : `<div class="unitBox level${u.level}" data-index="${i}" id="unit-${i}">${u.content}</div>`;
+    return highlighted;
+  }).join("
+");
+} ${selected}" data-index="${i}" id="unit-${i}">${u.content}</div>`;
   }).join("\n");
 }
 
