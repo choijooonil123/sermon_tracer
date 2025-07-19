@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 001</h1>
+<h1>설교문 구조 분석 002</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 <p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
@@ -142,7 +142,6 @@ function highlightBible(text) {
     const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
     content.appendChild(nested);
 
-    // 하위 문장 표시 (중분류와 대분류 공통)
     child.children.forEach(grandchild => {
       if (grandchild.children) {
         grandchild.children.forEach(greatgrandchild => {
@@ -154,6 +153,26 @@ function highlightBible(text) {
           };
           content.appendChild(leaf);
         });
+      } else {
+        const leaf = document.createElement("div");
+        leaf.innerHTML = highlightBible(`<span style='color:blue;'>${grandchild.title}</span>`);
+        leaf.style.marginLeft = `${(level + 2) * 20}px`;
+        leaf.onclick = () => {
+          currentIdx = grandchild.idx;
+        };
+        content.appendChild(leaf);
+      }
+    });
+  } else {
+    const leaf = document.createElement("div");
+    leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
+    leaf.style.marginLeft = `${(level + 1) * 20}px`;
+    leaf.onclick = () => {
+      currentIdx = child.idx;
+    };
+    content.appendChild(leaf);
+  }
+});
       } else {
         const leaf = document.createElement("div");
         leaf.innerHTML = highlightBible(`<span style='color:blue;'>${grandchild.title}</span>`);
