@@ -1,227 +1,307 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>설교문 음성 하이라이트</title>
-  <style>
-    body { font-family: sans-serif; padding: 1em; }
-    textarea { width: 100%; height: 180px; }
-    .highlight { background: yellow; font-weight: bold; }
-    .before { background: #f0f0f0; }
-    .after { background: #f9f9f9; }
-    .tree { margin-top: 1em; background: #f5f5f5; padding: 10px; border: 1px solid #ddd; }
-    #speechOutput { color: green; font-weight: bold; margin-top: 10px; }
-    #structureTree div:hover { background: #eef; cursor: pointer; }
-    .toggle-content { display: none; margin-left: 20px; }
-    .toggle-header::before { content: "▶ "; }
-    .expanded.toggle-header::before { content: "▼ "; }
-    .bible { color: red; font-weight: bold; font-style: italic; }
-  </style>
+<meta charset="UTF-8" />
+<title>설교문 음성 하이라이트</title>
+<style>
+body { font-family: sans-serif; padding: 1em; }
+textarea { width: 100%; height: 180px; }
+.highlight { background: yellow; font-weight: bold; }
+.before { background: #f0f0f0; }
+.after { background: #f9f9f9; }
+.tree { margin-top: 1em; background: #f5f5f5; padding: 10px; border: 1px solid #ddd; }
+#speechOutput { color: green; font-weight: bold; margin-top: 10px; }
+#structureTree div:hover { background: #eef; cursor: pointer; }
+.toggle-content { display: none; margin-left: 20px; }
+.toggle-header::before { content: "▶ "; }
+.expanded.toggle-header::before { content: "▼ "; }
+.bible { color: red; font-weight: bold; font-style: italic; }
+</style>
 </head>
 <body>
 
-<h1>설교문 구조 분석 001</h1>
+<h1>설교문 구조 분석</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 <p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
 <p id="speechOutput"></p>
 
 <p>
-  문맥 범위 (앞뒤 줄 수):
-  <input type="range" id="contextRange" min="1" max="10" value="5" oninput="updateContextLabel(this.value)">
-  <span id="contextLabel">5</span>줄
+문맥 범위 (앞뒤 줄 수):
+<input type="range" id="contextRange" min="1" max="10" value="5" oninput="updateContextLabel(this.value)">
+<span id="contextLabel">5</span>줄
 </p>
 
 <h2>② 설교문 구조 (선택 가능)</h2>
 <div id="structureTree" class="tree" tabindex="0"></div>
 
 <script>
-  let sermonLines = [];
-  let currentIdx = 0;
-  let isListening = false;
-  let structureMap = [];
+let sermonLines = [];
+let currentIdx = 0;
+let isListening = false;
+let structureMap = [];
 
-  document.getElementById("sermonInput").addEventListener("input", analyzeSermon);
+document.getElementById("sermonInput").addEventListener("input", analyzeSermon);
 
-  function updateContextLabel(val) {
-    document.getElementById("contextLabel").textContent = val;
-  }
+function updateContextLabel(val) {
+document.getElementById("contextLabel").textContent = val;
+}
 
 function highlightBible(text) {
-  // 1. 성경 구절 매칭 (<... [ 형식)
-  const match = text.match(/<([^[]+)]/);
-  if (!match) {
-    return `<span style="color:blue;">${text}</span>`;
-  }
-
-  const biblePart = `<span class="bible">&lt;${match[1]}]</span>`;
-  const beforeBible = text.slice(0, match.index);
-  const afterBible = text.slice(match.index + match[0].length);
-
-  return `<span style="color:blue;">${beforeBible}${biblePart}${afterBible}</span>`;
+// 1. 성경 구절 매칭 (<... [ 형식)
+const match = text.match(/<([^[]+)]/);
+if (!match) {
+return `<span style="color:blue;">${text}</span>`;
 }
 
-  function analyzeSermon() {
-    const input = document.getElementById("sermonInput").value;
-    const lines = input.split(/\n/).filter(l => l.trim() !== "");
-    sermonLines = lines.map((line, idx) => ({ idx, text: line.trim() }));
+const biblePart = `<span class="bible">&lt;${match[1]}]</span>`;
+const beforeBible = text.slice(0, match.index);
+const afterBible = text.slice(match.index + match[0].length);
 
-    structureMap = [];
-    let currentBlock = null;
-    let currentIndent1 = null;
-    let currentIndent2 = null;
+return `<span style="color:blue;">${beforeBible}${biblePart}${afterBible}</span>`;
+}
 
-    sermonLines.forEach(line => {
-      if (/^\d+\.\s/.test(line.text)) {
-        currentBlock = { title: line.text, children: [], summary: findSummary(line.idx) };
-        structureMap.push(currentBlock);
-        currentIndent1 = null;
-        currentIndent2 = null;
-      } else if (/^\d+\)\s/.test(line.text)) {
-        currentIndent1 = { title: line.text, children: [], summary: findSummary(line.idx) };
-        currentBlock?.children.push(currentIndent1);
-        currentIndent2 = null;
-      } else if (/^\(\d+\)\s/.test(line.text)) {
-        currentIndent2 = { title: line.text, children: [], summary: findSummary(line.idx) };
-        currentIndent1?.children.push(currentIndent2);
-      } else {
-  if (currentIndent2) {
-    currentIndent2.children.push({ title: line.text, idx: line.idx });
-  } else if (currentIndent1) {
-    currentIndent1.children.push({ title: line.text, idx: line.idx });
-  } else if (currentBlock) {
-    currentBlock.children.push({ title: line.text, idx: line.idx });
+function analyzeSermon() {
+const input = document.getElementById("sermonInput").value;
+const lines = input.split(/\n/).filter(l => l.trim() !== "");
+sermonLines = lines.map((line, idx) => ({ idx, text: line.trim() }));
+
+```
+structureMap = [];
+let currentBlock = null;
+let currentIndent1 = null;
+let currentIndent2 = null;
+
+sermonLines.forEach(line => {
+  if (/^\\d+\\.\\s/.test(line.text)) {
+    currentBlock = { title: line.text, children: [], summary: findSummary(line.idx) };
+    structureMap.push(currentBlock);
+    currentIndent1 = null;
+    currentIndent2 = null;
+  } else if (/^\\d+\\)\\s/.test(line.text)) {
+    currentIndent1 = { title: line.text, children: [], summary: findSummary(line.idx) };
+    currentBlock?.children.push(currentIndent1);
+    currentIndent2 = null;
+  } else if (/^\\(\\d+\\)\\s/.test(line.text)) {
+    currentIndent2 = { title: line.text, children: [], summary: findSummary(line.idx) };
+    currentIndent1?.children.push(currentIndent2);
   } else {
-    if (!structureMap[0]) {
-      structureMap.push({ title: "기타", children: [] });
-    }
-    structureMap[0].children.push({ title: line.text, idx: line.idx });
+
+```
+
+if (currentIndent2) {
+currentIndent2.children.push({ title: line.text, idx: line.idx });
+} else if (currentIndent1) {
+currentIndent1.children.push({ title: line.text, idx: line.idx });
+} else if (currentBlock) {
+currentBlock.children.push({ title: line.text, idx: line.idx });
+} else {
+if (!structureMap[0]) {
+structureMap.push({ title: "기타", children: [] });
+}
+structureMap[0].children.push({ title: line.text, idx: line.idx });
+}
+}
+});
+
+```
+currentIdx = 0;
+for (let i = 0; i < sermonLines.length; i++) {
+  if (sermonLines[i].text.startsWith("[]")) {
+    currentIdx = i;
+    break;
   }
 }
-    });
 
-    currentIdx = 0;
-    for (let i = 0; i < sermonLines.length; i++) {
-      if (sermonLines[i].text.startsWith("[]")) {
-        currentIdx = i;
-        break;
-      }
-    }
+renderStructureTree();
 
-    renderStructureTree();
-  }
+```
 
-  function findSummary(startIdx) {
-    for (let i = startIdx + 1; i < sermonLines.length; i++) {
-      const text = sermonLines[i].text;
-      if (text.startsWith("[]") || /\d+장\s?\d+절/.test(text) || /\([0-9]+:[0-9]+\)/.test(text)) {
-        return highlightBible(text);
-      }
-      if (/^\d+\.\s|^\d+\)|^\(\d+\)/.test(text)) break;
-    }
-    return "";
-  }
+}
 
-  function createToggleSection(title, children, level = 0, summary = "") {
-  const header = document.createElement("div");
-  header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
-  header.className = "toggle-header";
-  header.style.marginLeft = `${level * 20}px`;
+function findSummary(startIdx) {
+for (let i = startIdx + 1; i < sermonLines.length; i++) {
+const text = sermonLines[i].text;
+if (text.startsWith("[]") || /\d+장\s?\d+절/.test(text) || /\([0-9]+:[0-9]+\)/.test(text)) {
+return highlightBible(text);
+}
+if (/^\d+\.\s|^\d+\)|^\(\d+\)/.test(text)) break;
+}
+return "";
+}
 
-  const content = document.createElement("div");
-  content.className = "toggle-content";
-  content.style.display = "none";
+function createToggleSection(title, children, level = 0, summary = "") {
+const header = document.createElement("div");
+header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
+header.className = "toggle-header";
+header.style.marginLeft = `${level * 20}px`;
 
-  header.onclick = () => {
-    header.classList.toggle("expanded");
-    content.style.display = content.style.display === "none" ? "block" : "none";
-  };
+```
+const content = document.createElement("div");
+content.className = "toggle-content";
+content.style.display = "none";
 
-  children.forEach(child => {
-    if (child.children) {
-      const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
-      content.appendChild(nested);
-    } else if (child.title.startsWith("[]")) {
+header.onclick = () => {
+  header.classList.toggle("expanded");
+  content.style.display = content.style.display === "none" ? "block" : "none";
+};
+
+children.forEach(child => {
+
+```
+
+if (child.children) {
+const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
+content.appendChild(nested);
+
+```
+child.children.forEach(grandchild => {
+  if (grandchild.children) {
+    grandchild.children.forEach(greatgrandchild => {
       const leaf = document.createElement("div");
-      leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
-      leaf.style.marginLeft = `${(level + 1) * 20}px`;
+      leaf.innerHTML = highlightBible(`<span style='color:blue;'>${greatgrandchild.title}</span>`);
+      leaf.style.marginLeft = `${(level + 3) * 20}px`;
       leaf.onclick = () => {
-        currentIdx = child.idx;
+        currentIdx = greatgrandchild.idx;
       };
       content.appendChild(leaf);
-    }
-  });
-
-  const wrapper = document.createElement("div");
-  wrapper.appendChild(header);
-  wrapper.appendChild(content);
-  return wrapper;
-  }
-
-  function renderStructureTree() {
-    const container = document.getElementById("structureTree");
-    container.innerHTML = "";
-    structureMap.forEach(block => {
-      const section = createToggleSection(block.title, block.children, 0, block.summary);
-      container.appendChild(section);
     });
-  }
-
-  function startRecognitionLoop() {
-    if (isListening) return;
-    isListening = true;
-    recognize();
-  }
-
-  function recognize() {
-    if (!isListening) return;
-
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = "ko-KR";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onresult = function (event) {
-      const speechText = event.results[0][0].transcript.trim();
-      document.getElementById("speechOutput").textContent = `🎙 인식된 음성: ${speechText}`;
-      processMatching(speechText);
-      setTimeout(() => recognize(), 500);
+  } else {
+    const leaf = document.createElement("div");
+    leaf.innerHTML = highlightBible(`<span style='color:blue;'>${grandchild.title}</span>`);
+    leaf.style.marginLeft = `${(level + 2) * 20}px`;
+    leaf.onclick = () => {
+      currentIdx = grandchild.idx;
     };
-
-    recognition.onerror = function (event) {
-      console.warn("음성 인식 오류:", event.error);
-      setTimeout(() => recognize(), 1000);
-    };
-
-    recognition.onend = function () {
-      setTimeout(() => recognize(), 500);
-    };
-
-    recognition.start();
+    content.appendChild(leaf);
   }
+});
 
-  function isRoughlyMatched(a, b) {
-    const cleanA = a.replace(/\s+/g, "");
-    const cleanB = b.replace(/\s+/g, "");
-    const minLen = Math.min(cleanA.length, cleanB.length);
-    if (minLen === 0) return false;
+```
 
-    const includedLength = cleanA.includes(cleanB) ? cleanB.length : cleanB.includes(cleanA) ? cleanA.length : 0;
-    return includedLength / minLen >= 0.5;
-  }
+} else {
+const leaf = document.createElement("div");
+leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
+leaf.style.marginLeft = `${(level + 1) * 20}px`;
+leaf.onclick = () => {
+currentIdx = child.idx;
+};
+content.appendChild(leaf);
+}
+});
+} else {
+const leaf = document.createElement("div");
+leaf.innerHTML = highlightBible(`<span style='color:blue;'>${grandchild.title}</span>`);
+leaf.style.marginLeft = `${(level + 2) * 20}px`;
+leaf.onclick = () => {
+currentIdx = grandchild.idx;
+};
+content.appendChild(leaf);
+}
+});
+} else {
+const leaf = document.createElement("div");
+leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
+leaf.style.marginLeft = `${(level + 1) * 20}px`;
+leaf.onclick = () => {
+currentIdx = child.idx;
+};
+content.appendChild(leaf);
+}
+});
+} else {
+const leaf = document.createElement("div");
+leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
+leaf.style.marginLeft = `${(level + 1) * 20}px`;
+leaf.onclick = () => {
+currentIdx = child.idx;
+};
+content.appendChild(leaf);
+}
+});
 
-  function processMatching(speech) {
-    for (let idx = currentIdx + 1, count = 0; idx < sermonLines.length && count < 6; idx++) {
-      if (!sermonLines[idx].text.startsWith("[]")) continue;
-      count++;
-      const clean = sermonLines[idx].text.slice(2).trim();
-      if (isRoughlyMatched(speech, clean)) {
-        currentIdx = idx;
-        return true;
-      }
-    }
-    return false;
-  }
+```
+const wrapper = document.createElement("div");
+wrapper.appendChild(header);
+wrapper.appendChild(content);
+return wrapper;
+
+```
+
+}
+
+function renderStructureTree() {
+const container = document.getElementById("structureTree");
+container.innerHTML = "";
+structureMap.forEach(block => {
+const section = createToggleSection(block.title, block.children, 0, block.summary);
+container.appendChild(section);
+});
+}
+
+function startRecognitionLoop() {
+if (isListening) return;
+isListening = true;
+recognize();
+}
+
+function recognize() {
+if (!isListening) return;
+
+```
+const recognition = new webkitSpeechRecognition();
+recognition.lang = "ko-KR";
+recognition.continuous = false;
+recognition.interimResults = false;
+
+recognition.onresult = function (event) {
+  const speechText = event.results[0][0].transcript.trim();
+  document.getElementById("speechOutput").textContent = `🎙 인식된 음성: ${speechText}`;
+  processMatching(speechText);
+  setTimeout(() => recognize(), 500);
+};
+
+recognition.onerror = function (event) {
+  console.warn("음성 인식 오류:", event.error);
+  setTimeout(() => recognize(), 1000);
+};
+
+recognition.onend = function () {
+  setTimeout(() => recognize(), 500);
+};
+
+recognition.start();
+
+```
+
+}
+
+function isRoughlyMatched(a, b) {
+const cleanA = a.replace(/\s+/g, "");
+const cleanB = b.replace(/\s+/g, "");
+const minLen = Math.min(cleanA.length, cleanB.length);
+if (minLen === 0) return false;
+
+```
+const includedLength = cleanA.includes(cleanB) ? cleanB.length : cleanB.includes(cleanA) ? cleanA.length : 0;
+return includedLength / minLen >= 0.5;
+
+```
+
+}
+
+function processMatching(speech) {
+for (let idx = currentIdx + 1, count = 0; idx < sermonLines.length && count < 6; idx++) {
+if (!sermonLines[idx].text.startsWith("[]")) continue;
+count++;
+const clean = sermonLines[idx].text.slice(2).trim();
+if (isRoughlyMatched(speech, clean)) {
+currentIdx = idx;
+return true;
+}
+}
+return false;
+}
 </script>
 </body>
 </html>
