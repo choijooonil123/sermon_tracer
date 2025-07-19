@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>설교문 음성 하이라이트</title>
+  <title>설교문 구조</title>
   <style>
     body { font-family: sans-serif; padding: 1em; }
     textarea { width: 100%; height: 180px; }
@@ -20,17 +20,9 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 001</h1>
+<h1>설교문 구조 분석</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
-<p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
-<p id="speechOutput"></p>
-
-<p>
-  문맥 범위 (앞뒤 줄 수):
-  <input type="range" id="contextRange" min="1" max="10" value="5" oninput="updateContextLabel(this.value)">
-  <span id="contextLabel">5</span>줄
-</p>
 
 <h2>② 설교문 구조 (선택 가능)</h2>
 <div id="structureTree" class="tree" tabindex="0"></div>
@@ -47,10 +39,19 @@
     document.getElementById("contextLabel").textContent = val;
   }
 
-  function highlightBible(text) {
-    // 성경 구절: <... [ 이전까지를 성경 구절로 간주하여 강조
-    return text.replace(/<([^\[]+)]/g, '<span class="bible">&lt;$1]</span>');
+function highlightBible(text) {
+  // 1. 성경 구절 매칭 (<... [ 형식)
+  const match = text.match(/<([^[]+)]/);
+  if (!match) {
+    return `<span style="color:blue;">${text}</span>`;
   }
+
+  const biblePart = `<span class="bible">&lt;${match[1]}]</span>`;
+  const beforeBible = text.slice(0, match.index);
+  const afterBible = text.slice(match.index + match[0].length);
+
+  return `<span style="color:blue;">${beforeBible}${biblePart}${afterBible}</span>`;
+}
 
   function analyzeSermon() {
     const input = document.getElementById("sermonInput").value;
