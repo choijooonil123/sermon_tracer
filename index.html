@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 009</h1>
+<h1>설교문 구조 분석 001</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 <p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
@@ -91,6 +91,11 @@ function highlightBible(text) {
     currentIndent1.children.push({ title: line.text, idx: line.idx });
   } else if (currentBlock) {
     currentBlock.children.push({ title: line.text, idx: line.idx });
+  } else {
+    if (!structureMap[0]) {
+      structureMap.push({ title: "기타", children: [] });
+    }
+    structureMap[0].children.push({ title: line.text, idx: line.idx });
   }
 }
     });
