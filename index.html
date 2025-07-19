@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석</h1>
+<h1>설교문 구조 분석 005</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 
@@ -71,7 +71,7 @@
       } else if (/^\(\d+\)\s/.test(line.text)) {
         currentIndent2 = { title: line.text, children: [], summary: findSummary(line.idx) };
         currentIndent1?.children.push(currentIndent2);
-      } else if (!line.text.startsWith("[]")) {
+      } else {
         if (currentIndent2) {
           currentIndent2.children.push({ title: line.text, idx: line.idx });
         } else if (currentIndent1) {
