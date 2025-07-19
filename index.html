@@ -17,7 +17,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 & 음성 인식 하이라이트 001</h1>
+<h1>설교문 구조 분석 & 음성 인식 하이라이트 002</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 
@@ -27,7 +27,7 @@
 <h2>② 전체 설교문</h2>
 <div id="sermonDisplay"></div>
 
-<p><button onclick="startRecognition()">🎤 4초 음성 인식</button></p>
+<p><button onclick="startContinuousRecognition()">🎤 설교 감지 시작</button></p>
 <p id="speechOutput"></p>
   
 <h2>③ 현재 설교 문맥</h2>
@@ -35,7 +35,8 @@
 
 <script>
   let sermonLines = [];
-  let currentIdx = 0; // 현재 설교 위치
+  let currentIdx = 0;
+  let isListening = false;
 
   document.getElementById("sermonInput").addEventListener("input", analyzeSermon);
 
@@ -108,37 +109,49 @@
     }
   }
 
-  function startRecognition() {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
-      return;
-    }
+  function startContinuousRecognition() {
+    if (isListening) return;
+    isListening = true;
+    recognizeUntilMatchLoop();
+  }
+
+  function recognizeUntilMatchLoop() {
+    if (!isListening) return;
 
     const recognition = new webkitSpeechRecognition();
     recognition.lang = "ko-KR";
-    recognition.continuous = false;
+    recognition.continuous = false; // 끊길 때 종료
     recognition.interimResults = false;
 
     recognition.onresult = function (event) {
       const speechText = event.results[0][0].transcript.trim();
       document.getElementById("speechOutput").textContent = `🎙 인식된 음성: ${speechText}`;
-      matchSpeechToSermon(speechText);
+      const matched = processMatching(speechText);
+      if (!matched) {
+        setTimeout(() => recognizeUntilMatchLoop(), 500); // 다시 인식
+      }
     };
 
     recognition.onerror = function (event) {
-      alert("음성 인식 오류: " + event.error);
+      console.warn("음성 인식 오류:", event.error);
+      setTimeout(() => recognizeUntilMatchLoop(), 1000); // 오류 후 재시도
+    };
+
+    recognition.onend = function () {
+      if (isListening) {
+        setTimeout(() => recognizeUntilMatchLoop(), 500); // 자동 종료되면 재시작
+      }
     };
 
     recognition.start();
-    setTimeout(() => recognition.stop(), 4000);
   }
 
-  function matchSpeechToSermon(speech) {
+  function processMatching(speech) {
     let bestMatchIdx = -1;
     let maxScore = 0;
-
+    const searchRange = 10;
     const startIdx = currentIdx;
-    const endIdx = Math.min(sermonLines.length, currentIdx + 10);
+    const endIdx = Math.min(sermonLines.length, currentIdx + searchRange);
 
     for (let idx = startIdx; idx < endIdx; idx++) {
       const line = sermonLines[idx];
@@ -153,15 +166,33 @@
       if (score >= 0.9) {
         currentIdx = idx + 1;
         renderSermon(idx);
-        return;
+        checkNextSentenceAuto();
+        return true;
       }
     }
 
     if (maxScore > 0.5) {
       currentIdx = bestMatchIdx + 1;
       renderSermon(bestMatchIdx);
-    } else {
-      alert("일치하는 설교문을 찾을 수 없습니다.\n음성: " + speech);
+      checkNextSentenceAuto();
+      return true;
+    }
+
+    return false;
+  }
+
+  function checkNextSentenceAuto() {
+    const idx = currentIdx;
+    if (idx >= sermonLines.length) return;
+
+    const nextLine = sermonLines[idx];
+    const speechText = nextLine.text.replace(/[\[\]]/g, '');
+    const score = fuzzySimilarity(speechText, speechText); // 완전 일치
+
+    if (score >= 0.9) {
+      currentIdx = idx + 1;
+      renderSermon(idx);
+      setTimeout(() => checkNextSentenceAuto(), 300); // 다음 줄도 이어서 자동 확인
     }
   }
 
