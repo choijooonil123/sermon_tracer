@@ -17,11 +17,15 @@
     .unitBox.level3 { border-color: #f39c12; background: #fef6e4; margin-left: 40px; }
     .unitBox.selected { border-width: 6px; font-weight: bold; background: #fff3cd !important; }
     .highlight { background: #ffd54f; font-weight: bold; }
+    #status { font-weight: bold; color: #e74c3c; margin-bottom: 15px; }
   </style>
 </head>
 <body>
 
 <h1>📌 설교추적시스템</h1>
+
+<div id="status">🎙️ 음성 인식 대기 중...</div>
+<button onclick="startRecognition()">🎙️ 음성 인식 시작</button>
 
 <p>의미 단위를 계층적으로 구분해 주세요:</p>
 <ul>
@@ -32,7 +36,6 @@
 
 <textarea id="sermonInput" placeholder="예: {서론입니다} {{믿음이란}} {{{믿음은 바라는 것들의 실상이요}}}"></textarea>
 <div id="previewBox"></div>
-<button onclick="startRecognition()">🎙️ 음성 인식 시작</button>
 
 <script>
 let selectedIndex = -1;
@@ -78,6 +81,8 @@ function startRecognition() {
     alert('이 브라우저는 Web Speech API를 지원하지 않습니다.');
     return;
   }
+
+  document.getElementById("status").innerText = "🎤 음성 인식 중...";
 
   recognition = new webkitSpeechRecognition();
   recognition.lang = 'ko-KR';
