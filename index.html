@@ -17,7 +17,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 & 음성 인식 하이라이트 002</h1>
+<h1>설교문 구조 분석 & 음성 인식 하이라이트 003</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 
@@ -27,9 +27,9 @@
 <h2>② 전체 설교문</h2>
 <div id="sermonDisplay"></div>
 
-<p><button onclick="startContinuousRecognition()">🎤 설교 감지 시작</button></p>
+  <p><button onclick="startContinuousRecognition()">🎤 설교 감지 시작</button></p>
 <p id="speechOutput"></p>
-  
+
 <h2>③ 현재 설교 문맥</h2>
 <div id="context" class="context"></div>
 
@@ -52,7 +52,15 @@
       return { idx, text: line.trim(), indent };
     });
 
+    // '[]'로 정확히 시작하는 첫 문장을 현재 설교문으로 설정
     currentIdx = 0;
+    for (let i = 0; i < sermonLines.length; i++) {
+      if (sermonLines[i].text.trim().startsWith("[]")) {
+        currentIdx = i;
+        break;
+      }
+    }
+
     renderStructureTree();
     renderSermon();
   }
@@ -120,7 +128,7 @@
 
     const recognition = new webkitSpeechRecognition();
     recognition.lang = "ko-KR";
-    recognition.continuous = false; // 끊길 때 종료
+    recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onresult = function (event) {
@@ -128,18 +136,18 @@
       document.getElementById("speechOutput").textContent = `🎙 인식된 음성: ${speechText}`;
       const matched = processMatching(speechText);
       if (!matched) {
-        setTimeout(() => recognizeUntilMatchLoop(), 500); // 다시 인식
+        setTimeout(() => recognizeUntilMatchLoop(), 500);
       }
     };
 
     recognition.onerror = function (event) {
       console.warn("음성 인식 오류:", event.error);
-      setTimeout(() => recognizeUntilMatchLoop(), 1000); // 오류 후 재시도
+      setTimeout(() => recognizeUntilMatchLoop(), 1000);
     };
 
     recognition.onend = function () {
       if (isListening) {
-        setTimeout(() => recognizeUntilMatchLoop(), 500); // 자동 종료되면 재시작
+        setTimeout(() => recognizeUntilMatchLoop(), 500);
       }
     };
 
@@ -149,13 +157,13 @@
   function processMatching(speech) {
     let bestMatchIdx = -1;
     let maxScore = 0;
-    const searchRange = 10;
-    const startIdx = currentIdx;
-    const endIdx = Math.min(sermonLines.length, currentIdx + searchRange);
+    const searchRange = 6;
+    const startIdx = currentIdx + 1;
+    const endIdx = Math.min(sermonLines.length, startIdx + searchRange);
 
     for (let idx = startIdx; idx < endIdx; idx++) {
-      const line = sermonLines[idx];
-      const clean = line.text.replace(/[\[\]]/g, '');
+      if (!sermonLines[idx].text.startsWith("[]")) continue;
+      const clean = sermonLines[idx].text.slice(2).trim(); // remove leading []
       const score = fuzzySimilarity(speech, clean);
 
       if (score > maxScore) {
@@ -164,36 +172,19 @@
       }
 
       if (score >= 0.9) {
-        currentIdx = idx + 1;
+        currentIdx = idx;
         renderSermon(idx);
-        checkNextSentenceAuto();
         return true;
       }
     }
 
     if (maxScore > 0.5) {
-      currentIdx = bestMatchIdx + 1;
+      currentIdx = bestMatchIdx;
       renderSermon(bestMatchIdx);
-      checkNextSentenceAuto();
       return true;
     }
 
     return false;
-  }
-
-  function checkNextSentenceAuto() {
-    const idx = currentIdx;
-    if (idx >= sermonLines.length) return;
-
-    const nextLine = sermonLines[idx];
-    const speechText = nextLine.text.replace(/[\[\]]/g, '');
-    const score = fuzzySimilarity(speechText, speechText); // 완전 일치
-
-    if (score >= 0.9) {
-      currentIdx = idx + 1;
-      renderSermon(idx);
-      setTimeout(() => checkNextSentenceAuto(), 300); // 다음 줄도 이어서 자동 확인
-    }
   }
 
   function fuzzySimilarity(a, b) {
