@@ -9,10 +9,9 @@
     .highlight { background: yellow; font-weight: bold; }
     .before { background: #f0f0f0; }
     .after { background: #f9f9f9; }
-    .block, .indent1, .indent2 { cursor: pointer; }
     .tree { margin-top: 1em; background: #f5f5f5; padding: 10px; border: 1px solid #ddd; }
     #speechOutput { color: green; font-weight: bold; margin-top: 10px; }
-    #structureTree div:hover { background: #eef; }
+    #structureTree div:hover { background: #eef; cursor: pointer; }
     .toggle-content { display: none; margin-left: 20px; }
     .toggle-header::before { content: "▶ "; }
     .expanded.toggle-header::before { content: "▼ "; }
@@ -42,6 +41,7 @@
   let sermonLines = [];
   let currentIdx = 0;
   let isListening = false;
+  let structureMap = [];
 
   document.getElementById("sermonInput").addEventListener("input", analyzeSermon);
 
@@ -52,18 +52,34 @@
   function analyzeSermon() {
     const input = document.getElementById("sermonInput").value;
     const lines = input.split(/\n/).filter(l => l.trim() !== "");
+    sermonLines = lines.map((line, idx) => ({ idx, text: line.trim() }));
 
-    sermonLines = lines.map((line, idx) => {
-      let indent = "block";
-      if (/^\d+\.\s/.test(line)) indent = "block";
-      else if (/^\d+\)\s/.test(line)) indent = "indent1";
-      else if (/^\(\d+\)\s/.test(line)) indent = "indent2";
-      return { idx, text: line.trim(), indent };
+    structureMap = [];
+    let currentBlock = null;
+    let currentIndent1 = null;
+    let currentIndent2 = null;
+
+    sermonLines.forEach(line => {
+      if (/^\d+\.\s/.test(line.text)) {
+        currentBlock = { title: line.text, children: [] };
+        structureMap.push(currentBlock);
+        currentIndent1 = null;
+        currentIndent2 = null;
+      } else if (/^\d+\)\s/.test(line.text)) {
+        currentIndent1 = { title: line.text, children: [] };
+        currentBlock?.children.push(currentIndent1);
+        currentIndent2 = null;
+      } else if (/^\(\d+\)\s/.test(line.text)) {
+        currentIndent2 = { title: line.text, children: [] };
+        currentIndent1?.children.push(currentIndent2);
+      } else {
+        currentIndent2?.children.push({ title: line.text, idx: line.idx });
+      }
     });
 
     currentIdx = 0;
     for (let i = 0; i < sermonLines.length; i++) {
-      if (sermonLines[i].text.trim().startsWith("[]")) {
+      if (sermonLines[i].text.startsWith("[]")) {
         currentIdx = i;
         break;
       }
@@ -73,43 +89,49 @@
     renderLimitedSermon();
   }
 
+  function createToggleSection(title, children, level = 0) {
+    const header = document.createElement("div");
+    header.textContent = title;
+    header.className = "toggle-header";
+    header.style.marginLeft = `${level * 20}px`;
+
+    const content = document.createElement("div");
+    content.className = "toggle-content";
+    content.style.display = "none";
+
+    header.onclick = () => {
+      header.classList.toggle("expanded");
+      content.style.display = content.style.display === "none" ? "block" : "none";
+    };
+
+    children.forEach(child => {
+      if (child.children) {
+        const nested = createToggleSection(child.title, child.children, level + 1);
+        content.appendChild(nested);
+      } else {
+        const leaf = document.createElement("div");
+        leaf.textContent = child.title;
+        leaf.style.marginLeft = `${(level + 1) * 20}px`;
+        leaf.onclick = () => {
+          currentIdx = child.idx;
+          renderLimitedSermon(child.idx);
+        };
+        content.appendChild(leaf);
+      }
+    });
+
+    const wrapper = document.createElement("div");
+    wrapper.appendChild(header);
+    wrapper.appendChild(content);
+    return wrapper;
+  }
+
   function renderStructureTree() {
     const container = document.getElementById("structureTree");
     container.innerHTML = "";
-    let currentParent = null;
-    let currentChild = null;
-
-    sermonLines.forEach((line, idx) => {
-      const div = document.createElement("div");
-      div.textContent = line.text;
-
-      if (line.indent === "block") {
-        div.className = "block toggle-header";
-        div.onclick = () => {
-          div.classList.toggle("expanded");
-          const content = div.nextSibling;
-          if (content && content.classList.contains("toggle-content")) {
-            content.style.display = content.style.display === "none" ? "block" : "none";
-          }
-        };
-        container.appendChild(div);
-
-        currentParent = document.createElement("div");
-        currentParent.className = "toggle-content";
-        currentParent.style.display = "none";
-        container.appendChild(currentParent);
-
-      } else {
-        const sub = document.createElement("div");
-        sub.textContent = line.text;
-        sub.className = line.indent;
-        sub.onclick = () => {
-          currentIdx = line.idx;
-          renderLimitedSermon(line.idx);
-        };
-        if (currentParent) currentParent.appendChild(sub);
-        else container.appendChild(sub);
-      }
+    structureMap.forEach(block => {
+      const section = createToggleSection(block.title, block.children);
+      container.appendChild(section);
     });
   }
 
@@ -124,7 +146,6 @@
     for (let idx = start; idx < end; idx++) {
       const line = sermonLines[idx];
       const div = document.createElement("div");
-      div.className = line.indent;
       if (idx === highlightIdx) {
         div.classList.add("highlight");
         div.style.fontSize = "1.5em";
