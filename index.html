@@ -15,11 +15,12 @@
     .toggle-content { display: none; margin-left: 20px; }
     .toggle-header::before { content: "▶ "; }
     .expanded.toggle-header::before { content: "▼ "; }
+    .bible { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
 
-<h1>설교문 구조 분석</h1>
+<h1>설교문 구조 분석 & 음성 인식 하이라이트</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 <p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
@@ -44,6 +45,10 @@
 
   function updateContextLabel(val) {
     document.getElementById("contextLabel").textContent = val;
+  }
+
+  function highlightBible(text) {
+    return text.replace(/(\d+장\s?\d+절|\([0-9]+:[0-9]+\))/g, '<span class="bible">$1</span>');
   }
 
   function analyzeSermon() {
@@ -83,14 +88,13 @@
     }
 
     renderStructureTree();
-    renderLimitedSermon();
   }
 
   function findSummary(startIdx) {
     for (let i = startIdx + 1; i < sermonLines.length; i++) {
       const text = sermonLines[i].text;
       if (text.startsWith("[]") || /\d+장\s?\d+절/.test(text) || /\([0-9]+:[0-9]+\)/.test(text)) {
-        return text;
+        return highlightBible(text);
       }
       if (/^\d+\.\s|^\d+\)|^\(\d+\)/.test(text)) break;
     }
@@ -122,7 +126,6 @@
         leaf.style.marginLeft = `${(level + 1) * 20}px`;
         leaf.onclick = () => {
           currentIdx = child.idx;
-          renderLimitedSermon(child.idx);
         };
         content.appendChild(leaf);
       }
@@ -143,30 +146,6 @@
     });
   }
 
-  function renderLimitedSermon(highlightIdx = -1) {
-    const container = document.getElementById("sermonDisplay");
-    container.innerHTML = "";
-
-    const contextRange = parseInt(document.getElementById("contextRange").value);
-    const start = Math.max(0, highlightIdx - contextRange);
-    const end = Math.min(sermonLines.length, highlightIdx + contextRange + 1);
-
-    for (let idx = start; idx < end; idx++) {
-      const line = sermonLines[idx];
-      const div = document.createElement("div");
-      if (idx === highlightIdx) {
-        div.classList.add("highlight");
-        div.style.fontSize = "1.5em";
-      } else if (idx < highlightIdx) {
-        div.classList.add("before");
-      } else {
-        div.classList.add("after");
-      }
-      div.textContent = line.text;
-      container.appendChild(div);
-    }
-  }
-
   function startRecognitionLoop() {
     if (isListening) return;
     isListening = true;
@@ -184,7 +163,7 @@
     recognition.onresult = function (event) {
       const speechText = event.results[0][0].transcript.trim();
       document.getElementById("speechOutput").textContent = `🎙 인식된 음성: ${speechText}`;
-      const matched = processMatching(speechText);
+      processMatching(speechText);
       setTimeout(() => recognize(), 500);
     };
 
@@ -217,11 +196,9 @@
       const clean = sermonLines[idx].text.slice(2).trim();
       if (isRoughlyMatched(speech, clean)) {
         currentIdx = idx;
-        renderLimitedSermon(idx);
         return true;
       }
     }
-    renderLimitedSermon();
     return false;
   }
 </script>
