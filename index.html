@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 009</h1>
+<h1>설교문 구조 분석 011</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 
@@ -72,7 +72,6 @@
         currentIndent2 = { title: line.text, children: [], summary: findSummary(line.idx) };
         currentIndent1?.children.push(currentIndent2);
       } else {
-        if (line.text.startsWith("[]")) return;
         if (currentIndent2) {
           currentIndent2.children.push({ title: line.text, idx: line.idx });
         } else if (currentIndent1) {
@@ -128,6 +127,7 @@
         const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
         content.appendChild(nested);
       } else {
+        if (child.title.startsWith("[]")) return; // '[]'로 시작하는 문장은 토글 타이틀에서 제외
         const leaf = document.createElement("div");
         leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
         leaf.style.marginLeft = `${(level + 1) * 20}px`;
@@ -151,61 +151,6 @@
       const section = createToggleSection(block.title, block.children, 0, block.summary);
       container.appendChild(section);
     });
-  }
-
-  function startRecognitionLoop() {
-    if (isListening) return;
-    isListening = true;
-    recognize();
-  }
-
-  function recognize() {
-    if (!isListening) return;
-
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = "ko-KR";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onresult = function (event) {
-      const speechText = event.results[0][0].transcript.trim();
-      document.getElementById("speechOutput").textContent = `🎙 인식된 음성: ${speechText}`;
-      processMatching(speechText);
-      setTimeout(() => recognize(), 500);
-    };
-
-    recognition.onerror = function (event) {
-      console.warn("음성 인식 오류:", event.error);
-      setTimeout(() => recognize(), 1000);
-    };
-
-    recognition.onend = function () {
-      setTimeout(() => recognize(), 500);
-    };
-
-    recognition.start();
-  }
-
-  function isRoughlyMatched(a, b) {
-    const cleanA = a.replace(/\s+/g, "");
-    const cleanB = b.replace(/\s+/g, "");
-    const minLen = Math.min(cleanA.length, cleanB.length);
-    if (minLen === 0) return false;
-    const includedLength = cleanA.includes(cleanB) ? cleanB.length : cleanB.includes(cleanA) ? cleanA.length : 0;
-    return includedLength / minLen >= 0.5;
-  }
-
-  function processMatching(speech) {
-    for (let idx = currentIdx + 1, count = 0; idx < sermonLines.length && count < 6; idx++) {
-      if (!sermonLines[idx].text.startsWith("[]")) continue;
-      count++;
-      const clean = sermonLines[idx].text.slice(2).trim();
-      if (isRoughlyMatched(speech, clean)) {
-        currentIdx = idx;
-        return true;
-      }
-    }
-    return false;
   }
 </script>
 </body>
