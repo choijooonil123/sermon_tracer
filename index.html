@@ -62,11 +62,14 @@ function parseSermonByPattern(text) {
 
 function renderPreview(units) {
   const preview = document.getElementById("previewBox");
-  preview.innerHTML = units.map((u, i) => {
-    const isSelected = i === selectedIndex;
-    const boxClass = `unitBox level${u.level}` + (isSelected ? ' selected' : '');
-    const content = isSelected ? `<span class='highlight'>${u.content}</span>` : u.content;
-    return `<div class="${boxClass}" data-index="${i}" id="unit-${i}">${content}</div>`;
+  const fullText = document.getElementById("sermonInput").value;
+  const splitLines = fullText.split(/\n+/);
+  preview.innerHTML = splitLines.map((line, idx) => {
+    if (idx === selectedIndex) {
+      return `<div style="background: #fff3cd; font-size: 1.4em; font-weight: bold; padding: 4px;">${line}</div>`;
+    } else {
+      return `<div style="padding: 2px;">${line}</div>`;
+    }
   }).join("");
 }
 
