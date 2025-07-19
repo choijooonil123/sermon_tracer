@@ -20,9 +20,17 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 001</h1>
+<h1>설교문 구조 분석 009</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
+<p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
+<p id="speechOutput"></p>
+
+<p>
+  문맥 범위 (앞뒤 줄 수):
+  <input type="range" id="contextRange" min="1" max="10" value="5" oninput="updateContextLabel(this.value)">
+  <span id="contextLabel">5</span>줄
+</p>
 
 <h2>② 설교문 구조 (선택 가능)</h2>
 <div id="structureTree" class="tree" tabindex="0"></div>
@@ -77,8 +85,14 @@ function highlightBible(text) {
         currentIndent2 = { title: line.text, children: [], summary: findSummary(line.idx) };
         currentIndent1?.children.push(currentIndent2);
       } else {
-        currentIndent2?.children.push({ title: line.text, idx: line.idx });
-      }
+  if (currentIndent2) {
+    currentIndent2.children.push({ title: line.text, idx: line.idx });
+  } else if (currentIndent1) {
+    currentIndent1.children.push({ title: line.text, idx: line.idx });
+  } else if (currentBlock) {
+    currentBlock.children.push({ title: line.text, idx: line.idx });
+  }
+}
     });
 
     currentIdx = 0;
