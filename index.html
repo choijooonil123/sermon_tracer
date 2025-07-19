@@ -80,15 +80,16 @@
         currentIndent2 = { title: line.text, children: [], summary: findSummary(line.idx) };
         currentIndent1?.children.push(currentIndent2);
       } else {
+        const item = { title: line.text, idx: line.idx };
         if (currentIndent2) {
-          currentIndent2.children.push({ title: line.text, idx: line.idx });
+          currentIndent2.children.push(item);
         } else if (currentIndent1) {
-          currentIndent1.children.push({ title: line.text, idx: line.idx });
+          currentIndent1.children.push(item);
         } else if (currentBlock) {
-          currentBlock.children.push({ title: line.text, idx: line.idx });
+          currentBlock.children.push(item);
         } else {
           if (!structureMap[0]) structureMap.push({ title: "기타", children: [] });
-          structureMap[0].children.push({ title: line.text, idx: line.idx });
+          structureMap[0].children.push(item);
         }
       }
     });
@@ -116,8 +117,9 @@
   }
 
   function createToggleSection(title, children, level = 0, summary = "") {
+    const cleanTitle = title.startsWith("[]") ? title.slice(2).trim() : title;
     const header = document.createElement("div");
-    header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
+    header.innerHTML = `<strong>${cleanTitle}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
     header.className = "toggle-header";
     header.style.marginLeft = `${level * 20}px`;
 
@@ -135,7 +137,6 @@
         const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
         content.appendChild(nested);
       } else {
-        if (child.title.startsWith("[]")) return; // '[]'로 시작하는 문장은 토글 타이틀에서 제외
         const leaf = document.createElement("div");
         leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
         leaf.style.marginLeft = `${(level + 1) * 20}px`;
