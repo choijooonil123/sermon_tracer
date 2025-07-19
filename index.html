@@ -1,53 +1,37 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>설교추적시스템</title>
+  <meta charset="utf-8"/>
+  <title>설교추적시스템 001</title>
   <style>
-    body { font-family: Arial; margin: 40px; background: #f9f9f9; }
-    textarea { width: 100%; height: 150px; font-size: 1em; padding: 10px; white-space: pre-wrap; }
-    select, button { margin: 5px; padding: 10px; font-size: 1em; }
-    #previewBox {
-      max-height: 400px;          /* 새로 추가 */
-      overflow-y: auto;           /* 새로 추가 */
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 10px;              /* 기존보다 약간 줄여도 OK */
-      line-height: 1.6;
-      white-space: pre-wrap;
+    .unitBox.level1 {
+      border-color: #007acc;
+      background: #e6f2ff;
     }
-    .unitBox { margin: 5px 0; padding: 10px; border-left: 6px solid #ddd; cursor: pointer; }
-    .unitBox.level1 { border-color: #3498db; background: #ecf6fc; }
-    .unitBox.level2 { border-color: #2ecc71; background: #eafaf1; margin-left: 20px; }
-    .unitBox.level3 { border-color: #f39c12; background: #fef6e4; margin-left: 40px; }
-    .unitBox.selected { border-width: 6px; font-weight: bold; background: #fff3cd !important; }
-    .highlight { background: #ffd54f; font-weight: bold; }
-    #status { font-weight: bold; color: #e74c3c; margin-bottom: 15px; }
-    ul.tree { list-style-type: none; padding-left: 10px; }
-    ul.tree li { margin: 5px 0; cursor: pointer; }
-    .selectedTree { font-weight: bold; background: #dff0d8; }
-    #transcriptBox { margin-top: 10px; padding: 10px; background: #f0f0f0; border: 1px dashed #aaa; font-style: italic; }
+    .unitBox.level2 {
+      border-color: #33aa33;
+      background: #e8ffe8;
+      margin-left: 20px;
+    }
+    .unitBox.level3 {
+      border-color: #e69500;
+      background: #fff3e6;
+      margin-left: 40px;
+    }
+    .highlight {
+      background: yellow;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
 
-<h1>📌 설교추적시스템</h1>
-<div id="status">🎙️ 음성 인식 대기 중...</div>
-<button onclick="startRecognition()">🎙️ 음성 인식 시작</button>
-<div id="transcriptBox">🗣️ 실시간 음성 인식 결과: <span id="liveTranscript">(없음)</span></div>
-
-<p>설교 입력 (숫자. = 대의미, 숫자) = 중의미, (숫자) = 소의미):</p>
-<textarea id="sermonInput" placeholder="1. 서론\n1) 믿음이란\n(1) 바라는 것들의 실상"></textarea>
-
-<h3>🗂 의미 단위 트리</h3>
-<ul id="treeView" class="tree"></ul>
-
+<textarea id="sermonInput"></textarea>
 <div id="previewBox"></div>
 
 <script>
 let selectedIndex = -1;
 let currentUnits = [];
-let recognition;
 
 function parseSermonByPattern(text) {
   const lines = text.split(/\n+/);
@@ -60,6 +44,8 @@ function parseSermonByPattern(text) {
       units.push({ level: 2, content: line });
     } else if (/^\(\d+\)\s+/.test(line)) {
       units.push({ level: 3, content: line });
+    } else if (line.length > 0) {
+      units.push({ level: 3, content: line });
     }
   });
   return units;
@@ -67,121 +53,38 @@ function parseSermonByPattern(text) {
 
 function renderPreview(units) {
   const preview = document.getElementById("previewBox");
-  const fullText = document.getElementById("sermonInput").value;
-  const splitLines = fullText.split(/\n+/);
-
-  preview.innerHTML = splitLines.map((line, idx) => {
-    const isSelected = idx === selectedIndex;
-    return `<div 
-      class="sermon-line" 
-      id="line-${idx}" 
-      style="
-        padding: 6px; 
-        ${isSelected ? 'background: #fff3cd; font-size: 1.6em; font-weight: bold;' : ''}
-      ">
-      ${line}
-    </div>`;
-  }).join("");
-
-  // 자동 스크롤 처리
-  const target = document.getElementById(`line-${selectedIndex}`);
-  if (target) {
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
-
-
-function renderTree(units) {
-  const tree = document.getElementById("treeView");
-  tree.innerHTML = units.map((u, i) => {
-    const selected = i === selectedIndex ? 'selectedTree' : '';
-    const indent = '&nbsp;'.repeat((u.level - 1) * 4);
-    return `<li class='${selected}' data-index='${i}'>${indent}${u.content.slice(0, 30)}</li>`;
+  preview.innerHTML = units.map((u, i) => {
+    const isSelected = i === selectedIndex;
+    const boxClass = `unitBox level${u.level}` + (isSelected ? ' selected' : '');
+    const content = isSelected ? `<span class='highlight'>${u.content}</span>` : u.content;
+    return `<div class="${boxClass}" data-index="${i}" id="unit-${i}">${content}</div>`;
   }).join("\n");
+
+  // 현재 선택된 문장 자동 스크롤
+  if (selectedIndex >= 0) {
+    const el = document.getElementById(`unit-${selectedIndex}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 document.getElementById("sermonInput").addEventListener("input", () => {
   const text = document.getElementById("sermonInput").value;
   currentUnits = parseSermonByPattern(text);
+  selectedIndex = 0; // 입력 시 처음부터 보기
   renderPreview(currentUnits);
-  renderTree(currentUnits);
-});
-
-document.getElementById("treeView").addEventListener("click", e => {
-  const li = e.target.closest('li');
-  if (li) {
-    selectedIndex = parseInt(li.dataset.index);
-    renderPreview(currentUnits);
-    renderTree(currentUnits);
-  }
-});
-
-document.getElementById("previewBox").addEventListener("click", e => {
-  const box = e.target.closest('.unitBox');
-  if (box) {
-    selectedIndex = parseInt(box.dataset.index);
-    renderPreview(currentUnits);
-    renderTree(currentUnits);
-  }
 });
 
 document.addEventListener("keydown", e => {
-  if (e.key === "ArrowLeft" || e.key === "PageUp") {
+  if (e.key === "ArrowLeft" || e.key === "PageUp" || e.key === "ArrowUp") {
     selectedIndex = Math.max(0, selectedIndex - 1);
-  } else if (e.key === "ArrowRight" || e.key === "PageDown") {
+  } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === "ArrowDown") {
     selectedIndex = Math.min(currentUnits.length - 1, selectedIndex + 1);
   } else {
     return;
   }
   renderPreview(currentUnits);
-  renderTree(currentUnits);
 });
-
-function startRecognition() {
-  if (!('webkitSpeechRecognition' in window)) {
-    alert('이 브라우저는 Web Speech API를 지원하지 않습니다.');
-    return;
-  }
-
-  document.getElementById("status").innerText = "🎤 음성 인식 중...";
-
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = 'ko-KR';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-
-  recognition.onresult = (event) => {
-    const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
-    document.getElementById("liveTranscript").innerText = transcript;
-
-    if (selectedIndex >= 0) {
-      const currentText = currentUnits[selectedIndex].content;
-      const sentences = currentText.split(/\n+/);
-      let matched = false;
-
-      const highlighted = sentences.map(s => {
-        if (!matched && transcript.replace(/\s/g, '').includes(s.trim().replace(/\s/g, ''))) {
-          matched = true;
-          return `<span class='highlight'>${s}</span>`;
-        }
-        return s;
-      }).join('');
-
-      const currentBox = document.getElementById("unit-" + selectedIndex);
-      if (currentBox) currentBox.innerHTML = highlighted;
-
-      if (matched && selectedIndex < currentUnits.length - 1) {
-        selectedIndex++;
-        renderPreview(currentUnits);
-        renderTree(currentUnits);
-      }
-    }
-  };
-
-  recognition.start();
-}
 </script>
-
 
 </body>
 </html>
