@@ -48,7 +48,8 @@
   }
 
   function highlightBible(text) {
-    return text.replace(/(\d+장\s?\d+절|\([0-9]+:[0-9]+\))/g, '<span class="bible">$1</span>');
+    // 성경 구절: <... [ 이전까지를 성경 구절로 간주하여 강조
+    return text.replace(/<([^\[]+)]/g, '<span class="bible">&lt;$1]</span>');
   }
 
   function analyzeSermon() {
