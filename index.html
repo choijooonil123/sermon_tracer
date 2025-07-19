@@ -2,36 +2,36 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>설교문 구조 분석 및 음성 인식</title>
+  <title>설교문 음성 하이라이트</title>
   <style>
     body { font-family: sans-serif; padding: 1em; }
     textarea { width: 100%; height: 180px; }
     .highlight { background: yellow; font-weight: bold; }
+    .before { background: #f0f0f0; }
+    .after { background: #f9f9f9; }
     .block { margin-left: 0; }
     .indent1 { margin-left: 20px; }
     .indent2 { margin-left: 40px; }
     .tree { margin-top: 1em; background: #f5f5f5; padding: 10px; border: 1px solid #ddd; }
-    .context { margin-top: 1em; background: #eef; padding: 10px; border: 1px solid #88c; }
     #speechOutput { color: green; font-weight: bold; margin-top: 10px; }
   </style>
 </head>
 <body>
 
-<h1>설교문 구조 분석 & 음성 인식 하이라이트 003</h1>
+<h1>설교문 구조 분석 & 음성 인식 하이라이트 004</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
-
-<h2>① 설교문 구조</h2>
-<div id="structureTree" class="tree"></div>
-
-<h2>② 전체 설교문</h2>
-<div id="sermonDisplay"></div>
-
-  <p><button onclick="startContinuousRecognition()">🎤 설교 감지 시작</button></p>
+<p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
 <p id="speechOutput"></p>
 
-<h2>③ 현재 설교 문맥</h2>
-<div id="context" class="context"></div>
+<p>
+  문맥 범위 (앞뒤 줄 수):
+  <input type="range" id="contextRange" min="1" max="10" value="5" oninput="updateContextLabel(this.value)">
+  <span id="contextLabel">5</span>줄
+</p>
+
+<h2>① 현재 설교 구간 (하이라이트 중심)</h2>
+<div id="sermonDisplay"></div>
 
 <script>
   let sermonLines = [];
@@ -39,6 +39,10 @@
   let isListening = false;
 
   document.getElementById("sermonInput").addEventListener("input", analyzeSermon);
+
+  function updateContextLabel(val) {
+    document.getElementById("contextLabel").textContent = val;
+  }
 
   function analyzeSermon() {
     const input = document.getElementById("sermonInput").value;
@@ -52,7 +56,6 @@
       return { idx, text: line.trim(), indent };
     });
 
-    // '[]'로 정확히 시작하는 첫 문장을 현재 설교문으로 설정
     currentIdx = 0;
     for (let i = 0; i < sermonLines.length; i++) {
       if (sermonLines[i].text.trim().startsWith("[]")) {
@@ -61,69 +64,41 @@
       }
     }
 
-    renderStructureTree();
-    renderSermon();
+    renderLimitedSermon();
   }
 
-  function renderStructureTree() {
-    const container = document.getElementById("structureTree");
-    container.innerHTML = "";
-
-    const seen = { block: new Set(), indent1: new Set(), indent2: new Set() };
-
-    sermonLines.forEach(line => {
-      const { text, indent } = line;
-      let match = "";
-      if (indent === "block") match = text.match(/^\d+\.\s(.*)/);
-      else if (indent === "indent1") match = text.match(/^\d+\)\s(.*)/);
-      else if (indent === "indent2") match = text.match(/^\(\d+\)\s(.*)/);
-
-      if (match && !seen[indent].has(match[1])) {
-        const div = document.createElement("div");
-        div.className = indent;
-        div.textContent = match[1];
-        container.appendChild(div);
-        seen[indent].add(match[1]);
-      }
-    });
-  }
-
-  function renderSermon(highlightIdx = -1) {
+  function renderLimitedSermon(highlightIdx = -1) {
     const container = document.getElementById("sermonDisplay");
     container.innerHTML = "";
 
-    sermonLines.forEach((line, idx) => {
+    const contextRange = parseInt(document.getElementById("contextRange").value);
+    const start = Math.max(0, highlightIdx - contextRange);
+    const end = Math.min(sermonLines.length, highlightIdx + contextRange + 1);
+
+    for (let idx = start; idx < end; idx++) {
+      const line = sermonLines[idx];
       const div = document.createElement("div");
       div.className = line.indent;
-
       if (idx === highlightIdx) {
         div.classList.add("highlight");
         div.style.fontSize = "1.5em";
+      } else if (idx < highlightIdx) {
+        div.classList.add("before");
+      } else {
+        div.classList.add("after");
       }
-
       div.textContent = line.text;
       container.appendChild(div);
-    });
-
-    const context = document.getElementById("context");
-    if (highlightIdx >= 0) {
-      const before = sermonLines.slice(Math.max(0, highlightIdx - 4), highlightIdx).map(l => l.text).join("\n");
-      const current = sermonLines[highlightIdx].text;
-      const after = sermonLines.slice(highlightIdx + 1, highlightIdx + 5).map(l => l.text).join("\n");
-
-      context.innerHTML = `<pre>${before}\n<span class="highlight" style="font-size:1.5em;">${current}</span>\n${after}</pre>`;
-    } else {
-      context.innerHTML = "";
     }
   }
 
-  function startContinuousRecognition() {
+  function startRecognitionLoop() {
     if (isListening) return;
     isListening = true;
-    recognizeUntilMatchLoop();
+    recognize();
   }
 
-  function recognizeUntilMatchLoop() {
+  function recognize() {
     if (!isListening) return;
 
     const recognition = new webkitSpeechRecognition();
@@ -135,20 +110,16 @@
       const speechText = event.results[0][0].transcript.trim();
       document.getElementById("speechOutput").textContent = `🎙 인식된 음성: ${speechText}`;
       const matched = processMatching(speechText);
-      if (!matched) {
-        setTimeout(() => recognizeUntilMatchLoop(), 500);
-      }
+      setTimeout(() => recognize(), 500);
     };
 
     recognition.onerror = function (event) {
       console.warn("음성 인식 오류:", event.error);
-      setTimeout(() => recognizeUntilMatchLoop(), 1000);
+      setTimeout(() => recognize(), 1000);
     };
 
     recognition.onend = function () {
-      if (isListening) {
-        setTimeout(() => recognizeUntilMatchLoop(), 500);
-      }
+      setTimeout(() => recognize(), 500);
     };
 
     recognition.start();
@@ -157,33 +128,26 @@
   function processMatching(speech) {
     let bestMatchIdx = -1;
     let maxScore = 0;
-    const searchRange = 6;
-    const startIdx = currentIdx + 1;
-    const endIdx = Math.min(sermonLines.length, startIdx + searchRange);
+    let count = 0;
 
-    for (let idx = startIdx; idx < endIdx; idx++) {
+    for (let idx = currentIdx + 1; idx < sermonLines.length && count < 6; idx++) {
       if (!sermonLines[idx].text.startsWith("[]")) continue;
-      const clean = sermonLines[idx].text.slice(2).trim(); // remove leading []
+      count++;
+      const clean = sermonLines[idx].text.slice(2).trim();
       const score = fuzzySimilarity(speech, clean);
-
       if (score > maxScore) {
         maxScore = score;
         bestMatchIdx = idx;
       }
-
-      if (score >= 0.9) {
-        currentIdx = idx;
-        renderSermon(idx);
-        return true;
-      }
     }
 
-    if (maxScore > 0.5) {
+    if (maxScore > 0.5 && bestMatchIdx !== -1) {
       currentIdx = bestMatchIdx;
-      renderSermon(bestMatchIdx);
+      renderLimitedSermon(bestMatchIdx);
       return true;
     }
 
+    renderLimitedSermon();
     return false;
   }
 
@@ -197,10 +161,8 @@
     const matrix = Array.from({ length: a.length + 1 }, () =>
       Array(b.length + 1).fill(0)
     );
-
     for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
     for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-
     for (let i = 1; i <= a.length; i++) {
       for (let j = 1; j <= b.length; j++) {
         const cost = a[i - 1] === b[j - 1] ? 0 : 1;
@@ -211,7 +173,6 @@
         );
       }
     }
-
     return matrix[a.length][b.length];
   }
 </script>
