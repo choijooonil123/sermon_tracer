@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<h1>설교문 구조 분석 001</h1>
+<h1>설교문 구조 분석 002</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
 <p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
@@ -123,7 +123,7 @@
         content.appendChild(nested);
       } else {
         const leaf = document.createElement("div");
-        leaf.textContent = child.title;
+        leaf.innerHTML = `<span style='color:blue;'>${child.title}</span>`;
         leaf.style.marginLeft = `${(level + 1) * 20}px`;
         leaf.onclick = () => {
           currentIdx = child.idx;
