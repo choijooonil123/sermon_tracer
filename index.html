@@ -9,12 +9,13 @@
     .highlight { background: yellow; font-weight: bold; }
     .before { background: #f0f0f0; }
     .after { background: #f9f9f9; }
-    .block { margin-left: 0; cursor: pointer; }
-    .indent1 { margin-left: 20px; cursor: pointer; }
-    .indent2 { margin-left: 40px; cursor: pointer; }
+    .block, .indent1, .indent2 { cursor: pointer; }
     .tree { margin-top: 1em; background: #f5f5f5; padding: 10px; border: 1px solid #ddd; }
     #speechOutput { color: green; font-weight: bold; margin-top: 10px; }
     #structureTree div:hover { background: #eef; }
+    .toggle-content { display: none; margin-left: 20px; }
+    .toggle-header::before { content: "▶ "; }
+    .expanded.toggle-header::before { content: "▼ "; }
   </style>
 </head>
 <body>
@@ -75,16 +76,40 @@
   function renderStructureTree() {
     const container = document.getElementById("structureTree");
     container.innerHTML = "";
+    let currentParent = null;
+    let currentChild = null;
 
-    sermonLines.forEach(line => {
+    sermonLines.forEach((line, idx) => {
       const div = document.createElement("div");
-      div.className = line.indent;
       div.textContent = line.text;
-      div.onclick = () => {
-        currentIdx = line.idx;
-        renderLimitedSermon(line.idx);
-      };
-      container.appendChild(div);
+
+      if (line.indent === "block") {
+        div.className = "block toggle-header";
+        div.onclick = () => {
+          div.classList.toggle("expanded");
+          const content = div.nextSibling;
+          if (content && content.classList.contains("toggle-content")) {
+            content.style.display = content.style.display === "none" ? "block" : "none";
+          }
+        };
+        container.appendChild(div);
+
+        currentParent = document.createElement("div");
+        currentParent.className = "toggle-content";
+        currentParent.style.display = "none";
+        container.appendChild(currentParent);
+
+      } else {
+        const sub = document.createElement("div");
+        sub.textContent = line.text;
+        sub.className = line.indent;
+        sub.onclick = () => {
+          currentIdx = line.idx;
+          renderLimitedSermon(line.idx);
+        };
+        if (currentParent) currentParent.appendChild(sub);
+        else container.appendChild(sub);
+      }
     });
   }
 
