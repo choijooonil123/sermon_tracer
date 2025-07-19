@@ -1,151 +1,116 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>설교추적시스템 001</title>
+  <meta charset="UTF-8" />
+  <title>설교문 구조 분석 및 음성 하이라이트</title>
   <style>
-    body {
-      font-family: Arial;
-      padding: 30px;
-      background: #f9f9f9;
-    }
-    textarea {
-      width: 100%;
-      height: 150px;
-      font-size: 1em;
-      padding: 10px;
-      white-space: pre-wrap;
-    }
-    #previewBox {
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 20px;
-      margin-top: 20px;
-      line-height: 1.8;
-      white-space: pre-wrap;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .unitBox {
-      padding: 10px;
-      margin: 5px 0;
-      border-left: 6px solid transparent;
-    }
-    .level1 {
-      border-color: #007acc;
-      background: #e6f2ff;
-    }
-    .level2 {
-      border-color: #33aa33;
-      background: #e8ffe8;
-      margin-left: 20px;
-    }
-    .level3 {
-      border-color: #e69500;
-      background: #fff3e6;
-      margin-left: 40px;
-    }
-    .selected {
-      background: #fff7b2 !important;
-      font-weight: bold;
-      font-size: 1.2em;
-    }
-    #liveTranscript {
-      margin-top: 10px;
-      padding: 10px;
-      background: #eef;
-      font-style: italic;
-      border: 1px dashed #88a;
-    }
+    body { font-family: sans-serif; padding: 2em; }
+    textarea { width: 100%; height: 200px; }
+    .highlight { background-color: yellow; font-weight: bold; }
+    .block { margin-left: 0; }
+    .indent1 { margin-left: 20px; }
+    .indent2 { margin-left: 40px; }
+    .context { margin-top: 1em; padding: 1em; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
+  <h1>설교문 분석 및 음성 하이라이트</h1>
+  <textarea id="sermonInput" placeholder="설교문을 여기에 붙여넣으세요."></textarea><br><br>
+  <button onclick="analyzeSermon()">설교문 구조 분석</button>
+  <button onclick="startRecognition()">🎤 4초간 음성 인식 시작</button>
 
-<h2>📖 설교추적시스템</h2>
+  <div id="sermonDisplay"></div>
+  <div id="context" class="context"></div>
 
-<p>설교 입력란:</p>
-<textarea id="sermonInput" placeholder="예: 1. 서론\n1) 믿음이란\n(1) 바라는 것들의 실상..."></textarea>
+  <script>
+    let sermonLines = [];
+    let sermonSpeakables = [];
 
-<button onclick="startRecognition()">🎙️ 음성 인식 시작</button>
-<div id="liveTranscript">🗣️ 인식된 텍스트: <span id="speechText">(없음)</span></div>
+    function analyzeSermon() {
+      const input = document.getElementById("sermonInput").value;
+      const lines = input.split(/\n/).filter(l => l.trim() !== "");
 
-<div id="previewBox"></div>
+      sermonLines = lines.map((line, idx) => {
+        let indent = "block";
+        if (/^\d+\.\s/.test(line)) indent = "block";
+        else if (/^\d+\)\s/.test(line)) indent = "indent1";
+        else if (/^\(\d+\)\s/.test(line)) indent = "indent2";
+        return { idx, text: line.trim(), indent };
+      });
 
-<script>
-let selectedIndex = 0;
-let currentUnits = [];
+      sermonSpeakables = sermonLines.filter(l => l.text.startsWith("[")).map(l => l.text.replace(/^\[|\]$/g, ''));
 
-function parseSermonByPattern(text) {
-  const lines = text.split(/\n+/);
-  const units = [];
-  lines.forEach(line => {
-    line = line.trim();
-    if (/^\d+\.\s+/.test(line)) {
-      units.push({ level: 1, content: line });
-    } else if (/^\d+\)\s+/.test(line)) {
-      units.push({ level: 2, content: line });
-    } else if (/^\(\d+\)\s+/.test(line)) {
-      units.push({ level: 3, content: line });
-    } else if (line.length > 0) {
-      units.push({ level: 3, content: line });
+      renderSermon();
     }
-  });
-  return units;
-}
 
-function renderPreview(units) {
-  const preview = document.getElementById("previewBox");
-  preview.innerHTML = units.map((u, i) => {
-    const isSelected = i === selectedIndex;
-    const classes = `unitBox level${u.level}` + (isSelected ? ' selected' : '');
-    return `<div class="${classes}" id="unit-${i}">${u.content}</div>`;
-  }).join("");
+    function renderSermon(highlightIdx = -1) {
+      const container = document.getElementById("sermonDisplay");
+      container.innerHTML = "";
+      sermonLines.forEach((line, idx) => {
+        const div = document.createElement("div");
+        div.className = line.indent + (idx === highlightIdx ? " highlight" : "");
+        div.textContent = line.text;
+        container.appendChild(div);
+      });
 
-  const current = document.getElementById(`unit-${selectedIndex}`);
-  if (current) {
-    current.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-}
+      if (highlightIdx >= 0) {
+        const context = document.getElementById("context");
+        const before = sermonLines.slice(Math.max(0, highlightIdx - 3), highlightIdx).map(l => l.text).join("\n");
+        const current = sermonLines[highlightIdx].text;
+        const after = sermonLines.slice(highlightIdx + 1, highlightIdx + 4).map(l => l.text).join("\n");
+        context.innerHTML = `<strong>현재 설교 문맥</strong><br><pre>${before}\n<span class="highlight">${current}</span>\n${after}</pre>`;
+      }
+    }
 
-document.getElementById("sermonInput").addEventListener("input", () => {
-  const text = document.getElementById("sermonInput").value;
-  currentUnits = parseSermonByPattern(text);
-  selectedIndex = 0;
-  renderPreview(currentUnits);
-});
+    function startRecognition() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
+        return;
+      }
 
-document.addEventListener("keydown", e => {
-  if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) {
-    selectedIndex = Math.max(0, selectedIndex - 1);
-  } else if (["ArrowRight", "ArrowDown", "PageDown"].includes(e.key)) {
-    selectedIndex = Math.min(currentUnits.length - 1, selectedIndex + 1);
-  } else {
-    return;
-  }
-  renderPreview(currentUnits);
-});
+      const recognition = new webkitSpeechRecognition();
+      recognition.lang = "ko-KR";
+      recognition.continuous = false;
+      recognition.interimResults = false;
 
-function startRecognition() {
-  if (!('webkitSpeechRecognition' in window)) {
-    alert('Web Speech API를 지원하지 않는 브라우저입니다.');
-    return;
-  }
+      recognition.onresult = function (event) {
+        const speechText = event.results[0][0].transcript.trim();
+        matchSpeechToSermon(speechText);
+      };
 
-  const recognition = new webkitSpeechRecognition();
-  recognition.lang = 'ko-KR';
-  recognition.continuous = true;
-  recognition.interimResults = true;
+      recognition.start();
 
-  recognition.onresult = event => {
-    const transcript = Array.from(event.results)
-      .map(result => result[0].transcript)
-      .join('');
-    document.getElementById("speechText").innerText = transcript;
-  };
+      setTimeout(() => recognition.stop(), 4000);
+    }
 
-  recognition.start();
-}
-</script>
+    function matchSpeechToSermon(speech) {
+      let bestMatchIdx = -1;
+      let maxScore = 0;
 
+      sermonLines.forEach((line, idx) => {
+        const clean = line.text.replace(/[\[\]]/g, '');
+        const score = similarity(speech, clean);
+        if (score > maxScore) {
+          maxScore = score;
+          bestMatchIdx = idx;
+        }
+      });
+
+      if (maxScore > 0.4) {
+        renderSermon(bestMatchIdx);
+      } else {
+        alert("일치하는 문장을 찾을 수 없습니다.\n음성 내용: " + speech);
+      }
+    }
+
+    function similarity(a, b) {
+      a = a.toLowerCase();
+      b = b.toLowerCase();
+      const aWords = a.split(/\s+/);
+      const bWords = b.split(/\s+/);
+      const matchCount = aWords.filter(w => bWords.includes(w)).length;
+      return matchCount / Math.max(aWords.length, bWords.length);
+    }
+  </script>
 </body>
 </html>
