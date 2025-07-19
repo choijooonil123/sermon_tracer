@@ -119,19 +119,52 @@ function highlightBible(text) {
     };
 
     children.forEach(child => {
-      if (child.children) {
-        const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
-        content.appendChild(nested);
+  if (child.children) {
+    const nested = createToggleSection(child.title, child.children, level + 1, child.summary);
+    content.appendChild(nested);
+
+    // 하위 문장 표시 (중분류와 대분류 공통)
+    child.children.forEach(grandchild => {
+      if (grandchild.children) {
+        grandchild.children.forEach(greatgrandchild => {
+          const leaf = document.createElement("div");
+          leaf.innerHTML = highlightBible(`<span style='color:blue;'>${greatgrandchild.title}</span>`);
+          leaf.style.marginLeft = `${(level + 3) * 20}px`;
+          leaf.onclick = () => {
+            currentIdx = greatgrandchild.idx;
+          };
+          content.appendChild(leaf);
+        });
       } else {
         const leaf = document.createElement("div");
-        leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
-        leaf.style.marginLeft = `${(level + 1) * 20}px`;
+        leaf.innerHTML = highlightBible(`<span style='color:blue;'>${grandchild.title}</span>`);
+        leaf.style.marginLeft = `${(level + 2) * 20}px`;
         leaf.onclick = () => {
-          currentIdx = child.idx;
+          currentIdx = grandchild.idx;
         };
         content.appendChild(leaf);
       }
     });
+  } else {
+    const leaf = document.createElement("div");
+    leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
+    leaf.style.marginLeft = `${(level + 1) * 20}px`;
+    leaf.onclick = () => {
+      currentIdx = child.idx;
+    };
+    content.appendChild(leaf);
+  }
+});
+  } else {
+    const leaf = document.createElement("div");
+    leaf.innerHTML = highlightBible(`<span style='color:blue;'>${child.title}</span>`);
+    leaf.style.marginLeft = `${(level + 1) * 20}px`;
+    leaf.onclick = () => {
+      currentIdx = child.idx;
+    };
+    content.appendChild(leaf);
+  }
+});
 
     const wrapper = document.createElement("div");
     wrapper.appendChild(header);
