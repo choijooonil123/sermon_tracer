@@ -23,6 +23,14 @@
 <h1>설교문 구조 분석 001</h1>
 
 <textarea id="sermonInput" placeholder="설교문을 붙여넣으세요..."></textarea>
+<p><button onclick="startRecognitionLoop()">🎤 실시간 음성 감지 시작</button></p>
+<p id="speechOutput"></p>
+
+<p>
+  문맥 범위 (앞뒤 줄 수):
+  <input type="range" id="contextRange" min="1" max="10" value="5" oninput="updateContextLabel(this.value)">
+  <span id="contextLabel">5</span>줄
+</p>
 
 <h2>② 설교문 구조 (선택 가능)</h2>
 <div id="structureTree" class="tree" tabindex="0"></div>
@@ -96,7 +104,7 @@
 
   function createToggleSection(title, children, level = 0, summary = "") {
     const header = document.createElement("div");
-    header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + summary + '</span>' : ''}`;
+    header.innerHTML = `<strong>${title}</strong> ${summary ? '<span style="color:gray; font-size:0.9em">- ' + highlightBible(summary) + '</span>' : ''}`;
     header.className = "toggle-header";
     header.style.marginLeft = `${level * 20}px`;
 
