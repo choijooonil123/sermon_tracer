@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>설교추적시스템 001</title>
+  <title>설교추적시스템</title>
   <style>
     body { font-family: Arial; margin: 40px; background: #f9f9f9; }
     textarea { width: 100%; height: 150px; font-size: 1em; padding: 10px; white-space: pre-wrap; }
@@ -11,21 +11,25 @@
       background: #fff; border: 1px solid #ccc; padding: 20px; margin-bottom: 15px;
       min-height: 100px; line-height: 1.6; white-space: pre-wrap;
     }
-    .unitBox { margin: 10px 0; padding: 10px; border-left: 6px solid #ddd; cursor: pointer; }
+    .unitBox { margin: 5px 0; padding: 10px; border-left: 6px solid #ddd; cursor: pointer; }
     .unitBox.level1 { border-color: #3498db; background: #ecf6fc; }
     .unitBox.level2 { border-color: #2ecc71; background: #eafaf1; margin-left: 20px; }
     .unitBox.level3 { border-color: #f39c12; background: #fef6e4; margin-left: 40px; }
     .unitBox.selected { border-width: 6px; font-weight: bold; background: #fff3cd !important; }
     .highlight { background: #ffd54f; font-weight: bold; }
     #status { font-weight: bold; color: #e74c3c; margin-bottom: 15px; }
+    ul.tree { list-style-type: none; padding-left: 10px; }
+    ul.tree li { margin: 5px 0; cursor: pointer; }
+    .selectedTree { font-weight: bold; background: #dff0d8; }
+    #transcriptBox { margin-top: 10px; padding: 10px; background: #f0f0f0; border: 1px dashed #aaa; font-style: italic; }
   </style>
 </head>
 <body>
 
 <h1>📌 설교추적시스템</h1>
-
 <div id="status">🎙️ 음성 인식 대기 중...</div>
 <button onclick="startRecognition()">🎙️ 음성 인식 시작</button>
+<div id="transcriptBox">🗣️ 실시간 음성 인식 결과: <span id="liveTranscript">(없음)</span></div>
 
 <p>의미 단위를 계층적으로 구분해 주세요:</p>
 <ul>
@@ -35,6 +39,10 @@
 </ul>
 
 <textarea id="sermonInput" placeholder="예: {서론입니다} {{믿음이란}} {{{믿음은 바라는 것들의 실상이요}}}"></textarea>
+
+<h3>🗂 의미 단위 트리</h3>
+<ul id="treeView" class="tree"></ul>
+
 <div id="previewBox"></div>
 
 <script>
@@ -62,10 +70,28 @@ function renderPreview(units) {
   }).join("\n");
 }
 
+function renderTree(units) {
+  const tree = document.getElementById("treeView");
+  tree.innerHTML = units.map((u, i) => {
+    const selected = i === selectedIndex ? 'selectedTree' : '';
+    return `<li class='${selected}' data-index='${i}'>[${u.level}] ${u.content.slice(0, 30)}...</li>`;
+  }).join("\n");
+}
+
 document.getElementById("sermonInput").addEventListener("input", () => {
   const text = document.getElementById("sermonInput").value;
   currentUnits = parseSermon(text);
   renderPreview(currentUnits);
+  renderTree(currentUnits);
+});
+
+document.getElementById("treeView").addEventListener("click", e => {
+  const li = e.target.closest('li');
+  if (li) {
+    selectedIndex = parseInt(li.dataset.index);
+    renderPreview(currentUnits);
+    renderTree(currentUnits);
+  }
 });
 
 document.getElementById("previewBox").addEventListener("click", e => {
@@ -73,7 +99,20 @@ document.getElementById("previewBox").addEventListener("click", e => {
   if (box) {
     selectedIndex = parseInt(box.dataset.index);
     renderPreview(currentUnits);
+    renderTree(currentUnits);
   }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") {
+    selectedIndex = Math.max(0, selectedIndex - 1);
+  } else if (e.key === "ArrowRight") {
+    selectedIndex = Math.min(currentUnits.length - 1, selectedIndex + 1);
+  } else {
+    return;
+  }
+  renderPreview(currentUnits);
+  renderTree(currentUnits);
 });
 
 function startRecognition() {
@@ -90,17 +129,29 @@ function startRecognition() {
   recognition.interimResults = true;
 
   recognition.onresult = (event) => {
-    const transcript = Array.from(event.results)
-      .map(result => result[0].transcript)
-      .join('');
+    const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
+    document.getElementById("liveTranscript").innerText = transcript;
 
     if (selectedIndex >= 0) {
       const currentText = currentUnits[selectedIndex].content;
       const sentences = currentText.split(/(?<=[.!?\n])/);
+      let matched = false;
+
       const highlighted = sentences.map(s => {
-        return transcript.includes(s.trim()) ? `<span class='highlight'>${s}</span>` : s;
+        if (!matched && transcript.includes(s.trim())) {
+          matched = true;
+          return `<span class='highlight'>${s}</span>`;
+        }
+        return s;
       }).join('');
+
       document.getElementById("unit-" + selectedIndex).innerHTML = highlighted;
+
+      if (matched && selectedIndex < currentUnits.length - 1) {
+        selectedIndex++;
+        renderPreview(currentUnits);
+        renderTree(currentUnits);
+      }
     }
   };
 
