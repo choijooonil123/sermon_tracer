@@ -1,41 +1,73 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8"/>
+  <meta charset="UTF-8">
   <title>설교추적시스템 001</title>
   <style>
-    .unitBox.level1 {
+    body {
+      font-family: Arial;
+      padding: 30px;
+      background: #f9f9f9;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      font-size: 1em;
+      padding: 10px;
+      white-space: pre-wrap;
+    }
+    #previewBox {
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      margin-top: 20px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .unitBox {
+      padding: 10px;
+      margin: 5px 0;
+      border-left: 6px solid transparent;
+    }
+    .level1 {
       border-color: #007acc;
       background: #e6f2ff;
     }
-    .unitBox.level2 {
+    .level2 {
       border-color: #33aa33;
       background: #e8ffe8;
       margin-left: 20px;
     }
-    .unitBox.level3 {
+    .level3 {
       border-color: #e69500;
       background: #fff3e6;
       margin-left: 40px;
     }
-    .highlight {
-      background: yellow;
+    .selected {
+      background: #fff7b2 !important;
       font-weight: bold;
+      font-size: 1.2em;
     }
   </style>
 </head>
 <body>
 
-<textarea id="sermonInput"></textarea>
+<h2>📖 설교추적시스템</h2>
+<p>설교 입력란 (숫자. → 대, 숫자) → 중, (숫자) → 소 의미단위 인식):</p>
+<textarea id="sermonInput" placeholder="예: 1. 서론\n1) 믿음이란\n(1) 바라는 것들의 실상..."></textarea>
+
 <div id="previewBox"></div>
 
 <script>
-let selectedIndex = -1;
+let selectedIndex = 0;
 let currentUnits = [];
 
 function parseSermonByPattern(text) {
   const lines = text.split(/\n+/);
   const units = [];
+
   lines.forEach(line => {
     line = line.trim();
     if (/^\d+\.\s+/.test(line)) {
@@ -48,6 +80,7 @@ function parseSermonByPattern(text) {
       units.push({ level: 3, content: line });
     }
   });
+
   return units;
 }
 
@@ -55,29 +88,28 @@ function renderPreview(units) {
   const preview = document.getElementById("previewBox");
   preview.innerHTML = units.map((u, i) => {
     const isSelected = i === selectedIndex;
-    const boxClass = `unitBox level${u.level}` + (isSelected ? ' selected' : '');
-    const content = isSelected ? `<span class='highlight'>${u.content}</span>` : u.content;
-    return `<div class="${boxClass}" data-index="${i}" id="unit-${i}">${content}</div>`;
-  }).join("\n");
+    const classes = `unitBox level${u.level}` + (isSelected ? ' selected' : '');
+    return `<div class="${classes}" id="unit-${i}">${u.content}</div>`;
+  }).join("");
 
-  // 현재 선택된 문장 자동 스크롤
-  if (selectedIndex >= 0) {
-    const el = document.getElementById(`unit-${selectedIndex}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  // 현재 문장 스크롤
+  const current = document.getElementById(`unit-${selectedIndex}`);
+  if (current) {
+    current.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 }
 
 document.getElementById("sermonInput").addEventListener("input", () => {
   const text = document.getElementById("sermonInput").value;
   currentUnits = parseSermonByPattern(text);
-  selectedIndex = 0; // 입력 시 처음부터 보기
+  selectedIndex = 0;
   renderPreview(currentUnits);
 });
 
 document.addEventListener("keydown", e => {
-  if (e.key === "ArrowLeft" || e.key === "PageUp" || e.key === "ArrowUp") {
+  if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) {
     selectedIndex = Math.max(0, selectedIndex - 1);
-  } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === "ArrowDown") {
+  } else if (["ArrowRight", "ArrowDown", "PageDown"].includes(e.key)) {
     selectedIndex = Math.min(currentUnits.length - 1, selectedIndex + 1);
   } else {
     return;
